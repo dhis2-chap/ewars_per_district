@@ -8,3 +8,4 @@ adapters: {'Y': 'disease_cases',
            'S1': 'location',
            'rainsum': 'rainfall',
            'meantemperature': 'mean_temperature'}
+dockername: ivargr/r_inla
