@@ -7,7 +7,7 @@ local({r <- getOption("repos")
        r["CRAN"] <- "https://cran.r-project.org"
        options(repos=r)
 })
-r = getOption("repos"); r["CRAN"] = "http://cran.us.r-project.org"; options(repos = r); install.packages(c("tsModel", "dlnm"), repos=c(getOption("repos"), dep=TRUE))
+install.packages(c("tsModel", "dlnm"))
 library(INLA)
 source('lib.R') # mymodel, extra_fields
 # Read in command line args filenames
