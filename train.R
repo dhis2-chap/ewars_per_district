@@ -3,7 +3,7 @@
 # T1 = week
 # T2 = year
 # S1 = district
-#install.packages(c('tsModel', 'dlnm'))
+install.packages(c('tsModel', 'dlnm'))
 library(INLA)
 source('lib.R') # mymodel, extra_fields
 # Read in command line args filenames
