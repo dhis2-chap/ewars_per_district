@@ -3,11 +3,7 @@
 # T1 = week
 # T2 = year
 # S1 = district
-local({r <- getOption("repos")
-       r["CRAN"] <- "https://cran.r-project.org"
-       options(repos=r)
-})
-install.packages(c("tsModel", "dlnm"))
+
 library(INLA)
 source('lib.R') # mymodel, extra_fields
 # Read in command line args filenames

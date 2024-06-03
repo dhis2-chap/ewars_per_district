@@ -1,5 +1,12 @@
+local({r <- getOption("repos")
+       r["CRAN"] <- "https://cran.r-project.org"
+       options(repos=r)
+})
+install.packages(c("tsModel", "dlnm"))
+
 library(tsModel)
 library(dlnm)
+
 get_crossbasis <- function(var, group, nlag){
     tsModel::Lag(var, group = group, k = 0:nlag)
     lagknot = equalknots(0:nlag, 2)
