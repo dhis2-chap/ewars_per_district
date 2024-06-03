@@ -3,7 +3,7 @@
 # T1 = week
 # T2 = year
 # S1 = district
-install.packages(c('tsModel', 'dlnm'))
+r = getOption("repos"); r["CRAN"] = "http://cran.us.r-project.org"; options(repos = r); install.packages(c("tsModel", "dlnm"), repos=c(getOption("repos"), dep=TRUE))
 library(INLA)
 source('lib.R') # mymodel, extra_fields
 # Read in command line args filenames
