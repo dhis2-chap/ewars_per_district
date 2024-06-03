@@ -80,6 +80,11 @@ This is where the predictions will be saved. The predictions will usually be in 
 ```
 The last 7 columns are the ones that the model outputs and that will be read by CHAP for the evalutaion or visualization.
 
+## Evaluating through CHAP
+To run multiple forecasts throught CHAP do the following:
+```bash
+pip install climate_health
+climate_health multi-for
 
 
 

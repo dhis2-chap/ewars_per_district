@@ -1,15 +1,24 @@
 # !/usr/bin/env Rscript
+
 library(INLA)
+source('lib.R') # mymodel, extra_fields
 args = commandArgs(trailingOnly=TRUE)
 model_filename = args[1] # filename of the saved model
-data_filename = args[2] # filename of the data necessary for prediction
-out_filename = args[3] # where to save the predictions
+data_filename =  args[2] # filename of the data necessary for prediction
+out_filename =  args[3] # where to save the predictions
 
 # Load the model
 load(file = model_filename)
 
 # Load the data
 df <- read.table(data_filename, sep=',', header=TRUE)
+basis_meantemperature = extra_fields(df)
+
+# create a row mask for any missing values in row
+na.mask = apply(basis_meantemperature, 1, function(row) (any(is.na(row))))
+df = df[!na.mask,]
+basis_meantemperature = basis_meantemperature[!na.mask,]
+model = mymodel(formula, df, config = TRUE)
 
 casestopred <- df$Y # response variable
 
@@ -21,17 +30,18 @@ mpred <- length(idx.pred)
 s <- 100
 xx <- inla.posterior.sample(s, model)  # This samples parameters of the model
 xx.s <- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx) # This extracts the expected value and hyperparameters from the samples
+print(xx.s)
 
 # Sample predictions
 y.pred <- matrix(NA, mpred, s)
 for (s.idx in 1:s){
   xx.sample <- xx.s[, s.idx]
-  for (p.idx in 1:mpred){
-    y.pred[p.idx, s.idx] <- rnbinom(1,  mu = exp(xx.sample[1+p.idx]), size = xx.sample[1])
-  }
+  print(xx.sample[-1])
+  y.pred[, s.idx] <- rnbinom(mpred,  mu = exp(xx.sample[-1]), size = xx.sample[1])
 }
-
+#print(y.pred)
 # Generate new dataframe with summary statistics
+print(y.pred)
 new.df = df[idx.pred,]
 new.df$mean = rowMeans(y.pred)
 new.df$std = apply(y.pred, 1, sd)
