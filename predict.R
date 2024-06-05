@@ -8,7 +8,7 @@ data_filename =  args[2] # filename of the data necessary for prediction
 out_filename =  args[3] # where to save the predictions
 graph_filename =  args[4] # filename of the graph
 source('lib.R') # mymodel, extra_fields
-inla.debug.graph(graph_filename)
+#inla.debug.graph(graph_filename)
 # Load the model
 load(file = model_filename)
 
