@@ -6,7 +6,8 @@ args = commandArgs(trailingOnly=TRUE)
 model_filename = args[1] # filename of the saved model
 data_filename =  args[2] # filename of the data necessary for prediction
 out_filename =  args[3] # where to save the predictions
-
+graph_filename =  args[4] # filename of the graph
+inla.debug.graph(graph_filename)
 # Load the model
 load(file = model_filename)
 
@@ -30,7 +31,7 @@ mpred <- length(idx.pred)
 s <- 100
 xx <- inla.posterior.sample(s, model)  # This samples parameters of the model
 xx.s <- inla.posterior.sample.eval(function(...) c(theta[1], Predictor[idx.pred]), xx) # This extracts the expected value and hyperparameters from the samples
-print(xx.s)
+#print(xx.s)
 
 # Sample predictions
 y.pred <- matrix(NA, mpred, s)
@@ -41,7 +42,7 @@ for (s.idx in 1:s){
 }
 #print(y.pred)
 # Generate new dataframe with summary statistics
-print(y.pred)
+#print(y.pred)
 new.df = df[idx.pred,]
 new.df$mean = rowMeans(y.pred)
 new.df$std = apply(y.pred, 1, sd)

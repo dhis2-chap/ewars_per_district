@@ -1,6 +1,6 @@
 name: example_model
-train_command: 'Rscript train.R {train_data} {model}'
-predict_command: 'Rscript predict.R {model} {future_data} {out_file}'
+train_command: 'Rscript train.R {train_data} {model} {graph}'
+predict_command: 'Rscript predict.R {model} {future_data} {out_file} {graph}'
 adapters: {'Y': 'disease_cases',
            'E': 'population',
            'T1': 'week',
