@@ -30,7 +30,10 @@ mymodel <- function(formula, data = df, family = "nbinomial", config = FALSE)
                 verbose = F, safe=FALSE)
   return(model)
 }
+if (graph_filename == 'none') {
+    formula <- Y ~ 1 + f(T1,  model = "rw1", cyclic = TRUE, scale.model=TRUE) + f(T2, model = "rw1") + rainsum + basis_meantemperature
+} else {
+    formula <- Y ~ 1 + f(T1,  model = "rw1", cyclic = TRUE, scale.model=TRUE) + f(T2, model = "rw1") + f(S1, model = "bym2", graph = graph_filename, scale.model = TRUE) + rainsum + basis_meantemperature
+}
 
-
-formula <- Y ~ 1 + f(T1,  model = "rw1", cyclic = TRUE, scale.model=TRUE) + f(T2, model = "rw1") + f(S1, model = "bym2", graph = graph_filename, scale.model = TRUE) + rainsum + basis_meantemperature
 
