@@ -1,3 +1,10 @@
+# Y = number of cases
+# E = pop.var.dat
+# T1 = week
+# T2 = year
+# S1 = district
+
+
 local({r <- getOption("repos")
        r["CRAN"] <- "https://cran.r-project.org"
        options(repos=r)
@@ -15,7 +22,7 @@ get_crossbasis <- function(var, group, nlag){
 
 
 extra_fields <- function(df) {
-    basis_meantemperature <- get_crossbasis(df$meantemperature, df$S1, 6)
+    basis_meantemperature <- get_crossbasis(df$meantemperature, df$ID_spat, 6)
     colnames(basis_meantemperature) = paste0("basis_meantemperature.", colnames(basis_meantemperature))
     return (basis_meantemperature)
 }
@@ -30,10 +37,7 @@ mymodel <- function(formula, data = df, family = "nbinomial", config = FALSE)
                 verbose = F, safe=FALSE)
   return(model)
 }
-if (graph_filename == 'none') {
-    formula <- Y ~ 1 + f(T1,  model = "rw1", cyclic = TRUE, scale.model=TRUE) + f(T2, model = "rw1") + rainsum + basis_meantemperature
-} else {
-    formula <- Y ~ 1 + f(T1,  model = "rw1", cyclic = TRUE, scale.model=TRUE) + f(T2, model = "rw1") + f(S1, model = "bym2", graph = graph_filename, scale.model = TRUE) + rainsum + basis_meantemperature
-}
 
+basis_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + f(week, model='rw1', cyclic=T, scale.model=T)
+lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + f(week, model='rw1', cyclic=T, scale.model=T) + basis_meantemperature
 

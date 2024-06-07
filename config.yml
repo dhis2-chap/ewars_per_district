@@ -1,11 +1,11 @@
 name: example_model
 train_command: 'Rscript train.R {train_data} {model} {graph}'
 predict_command: 'Rscript predict.R {model} {future_data} {out_file} {graph}'
-adapters: {'Y': 'disease_cases',
+adapters: {'Cases': 'disease_cases',
            'E': 'population',
-           'T1': 'week',
-           'T2': 'year',
-           'S1': 'location',
+           'week': 'week',
+           'ID_year': 'year',
+           'ID_spat': 'location',
            'rainsum': 'rainfall',
            'meantemperature': 'mean_temperature'}
 dockername: ivargr/r_inla
