@@ -8,8 +8,8 @@ library(INLA)
 #
 # # Read in command line args filenames
 args = commandArgs(trailingOnly=TRUE)
-data_filename = 'training_data.csv'#  args[1]
-output_model_filename = 'tmp.csv'
+data_filename = args[1] # 'training_data.csv'#  args[1]
+output_model_filename = args[2] # 'tmp.csv'
 source('lib.R')
 df <- read.table(data_filename, sep=',', header=TRUE)
 df$week = as.numeric(substr(df$time_period, 6, 8))

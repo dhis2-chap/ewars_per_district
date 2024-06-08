@@ -1,4 +1,4 @@
-name: example_model
+name: chap_ewars
 train_command: 'Rscript train.R {train_data} {model} {graph}'
 predict_command: 'Rscript predict.R {model} {future_data} {out_file} {graph}'
 adapters: {'Cases': 'disease_cases',
