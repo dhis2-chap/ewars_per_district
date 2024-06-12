@@ -3,7 +3,7 @@ train_command: 'Rscript train.R {train_data} {model} {graph}'
 predict_command: 'Rscript predict.R {model} {future_data} {out_file} {graph}'
 adapters: {'Cases': 'disease_cases',
            'E': 'population',
-           'week': 'week',
+           'month': 'month',
            'ID_year': 'year',
            'ID_spat': 'location',
            'rainsum': 'rainfall',

@@ -7,7 +7,13 @@
 
 library(INLA)
 
-args = commandArgs(trailingOnly=TRUE)
+
+from_command_line= TRUE
+if (from_command_line) {
+    args = commandArgs(trailingOnly=TRUE)
+} else {
+    args = c('chap_ewars.model', 'future_data.csv', 'predictions.csv', 'none')
+}
 model_filename = args[1] # filename of the saved model
 data_filename =  args[2] # filename of the data necessary for prediction
 out_filename =  args[3] # where to save the predictions
@@ -23,13 +29,14 @@ load(file = model_filename)
 
 # Load the data
 df <- read.table(data_filename, sep=',', header=TRUE)
-df$week = as.numeric(substr(df$time_period, 6, 8))
+df <- offset_years_and_months(df)
+#df$week = as.numeric(substr(df$time_period, 6, 8))
 basis_meantemperature = extra_fields(df)
-
+basis_rainfall = get_basis_rainfall(df)
 # create a row mask for any missing values in row
 na.mask = apply(basis_meantemperature, 1, function(row) (any(is.na(row))))
-df = df[!na.mask,]
-basis_meantemperature = basis_meantemperature[!na.mask,]
+#df = df[!na.mask,]
+#basis_meantemperature = basis_meantemperature[!na.mask,]
 model = mymodel(selectedFormula, df, config = TRUE)
 #model2 = mymodel(lagged_formula, df, config = TRUE)
 
@@ -70,3 +77,4 @@ new.df$quantile_high = apply(y.pred, 1, function(row) quantile(row, 0.9))
 
 # Write new dataframe to file
 write.csv(new.df, out_filename)
+
