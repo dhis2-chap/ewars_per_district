@@ -1,0 +1,19 @@
+
+
+name: Auto Ewars
+
+docker_env:
+    image: ivargr/r_inla
+
+entry_points:
+  train:
+    parameters:
+      train_data: path
+      model_output_file: path
+    command: "Rscript train.R {train_data} {model_output_file}"
+  predict:
+    parameters:
+      future_data: path
+      model: path
+      out_file: path
+    command: "Rscript predict.R {model} {future_data} {out_file}"
