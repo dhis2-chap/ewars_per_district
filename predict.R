@@ -18,6 +18,19 @@ model_filename = args[1] # filename of the saved model
 data_filename =  args[2] # filename of the data necessary for prediction
 out_filename =  args[3] # where to save the predictions
 graph_filename =  args[4] # filename of the graph
+output_format = args[5]
+print(output_format)
+stopifnot(output_format %in% c('metrics', 'samples'))
+
+# check if args[5] is set, if not set output format to samples
+#if (length(args) < 5) {
+#	output_format = 'metrics'
+#	print('Output format not set, defaulting to metrics')
+#} else {
+#	print('Output format set to ' + output_format)
+#}
+
+
 #data_filename = 'future_data.csv'
 #model_filename = 'tmp.csv'
 #out_filename = 'tmp.txt'
@@ -66,14 +79,21 @@ for (s.idx in 1:s){
 #print(y.pred)
 # Generate new dataframe with summary statistics
 #print(y.pred)
-new.df = df[idx.pred,]
-new.df$mean = rowMeans(y.pred)
-new.df$std = apply(y.pred, 1, sd)
-new.df$max = apply(y.pred, 1, max)
-new.df$min = apply(y.pred, 1, min)
-new.df$quantile_low = apply(y.pred, 1, function(row) quantile(row, 0.1))
-new.df$median = apply(y.pred, 1, function(row) quantile(row, 0.5))
-new.df$quantile_high = apply(y.pred, 1, function(row) quantile(row, 0.9))
+if (output_format == 'metrics') {
+	new.df = df[idx.pred,]
+	new.df$mean = rowMeans(y.pred)
+	new.df$std = apply(y.pred, 1, sd)
+	new.df$max = apply(y.pred, 1, max)
+	new.df$min = apply(y.pred, 1, min)
+	new.df$quantile_low = apply(y.pred, 1, function(row) quantile(row, 0.1))
+	new.df$median = apply(y.pred, 1, function(row) quantile(row, 0.5))
+	new.df$quantile_high = apply(y.pred, 1, function(row) quantile(row, 0.9))
+} else {
+ 	# make a dataframe where first column is the time points, second column is the location, rest is the samples
+ 	# rest of columns should be called sample_0, sample_1, etc
+ 	new.df = data.frame(time_period = df$time_period[idx.pred], location = df$location[idx.pred], y.pred)
+ 	colnames(new.df) = c('time_period', 'location', paste0('sample_', 0:(s-1)))
+}
 
 # Write new dataframe to file
 write.csv(new.df, out_filename)

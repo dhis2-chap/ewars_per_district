@@ -9,7 +9,7 @@ local({r <- getOption("repos")
        r["CRAN"] <- "https://cran.r-project.org"
        options(repos=r)
 })
-install.packages(c("tsModel", "dlnm"))
+#install.packages(c("tsModel", "dlnm"))
 
 library(tsModel)
 library(dlnm)

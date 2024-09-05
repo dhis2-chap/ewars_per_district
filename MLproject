@@ -1,19 +1,27 @@
 
 
-name: Auto Ewars
+name: auto_ewarjs
+
+adapters: {'Cases': 'disease_cases',
+           'E': 'population',
+           'month': 'month',
+           'ID_year': 'year',
+           'ID_spat': 'location',
+           'rainsum': 'rainfall',
+           'meantemperature': 'mean_temperature'}
 
 docker_env:
-    image: ivargr/r_inla
+  image: ivargr/r_inla
 
 entry_points:
   train:
     parameters:
       train_data: path
-      model_output_file: path
-    command: "Rscript train.R {train_data} {model_output_file}"
+      model: path
+    command: "Rscript train.R {train_data} {model}"
   predict:
     parameters:
       future_data: path
       model: path
       out_file: path
-    command: "Rscript predict.R {model} {future_data} {out_file}"
+    command: "Rscript predict.R {model} {future_data} {out_file} None samples"
