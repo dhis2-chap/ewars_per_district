@@ -15,9 +15,10 @@ data_filename = args[1] # 'training_data.csv'#  args[1]
 output_model_filename = args[2] # 'tmp.csv'
 source('lib.R')
 df <- read.table(data_filename, sep=',', header=TRUE)
+print(head(df))
 #df$week = as.numeric(substr(df$time_period, 6, 8))
 df = offset_years_and_months(df)
-print(df)
+print(head(df))
 selectedFormula=lagged_formula
 save(selectedFormula, file=output_model_filename)
 #basis_meantemperature = extra_fields(df)

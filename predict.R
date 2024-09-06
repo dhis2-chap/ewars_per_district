@@ -15,10 +15,11 @@ if (from_command_line) {
     args = c('chap_ewars.model', 'future_data.csv', 'predictions.csv', 'none')
 }
 model_filename = args[1] # filename of the saved model
-data_filename =  args[2] # filename of the data necessary for prediction
-out_filename =  args[3] # where to save the predictions
-graph_filename =  args[4] # filename of the graph
-output_format = args[5]
+historic_data_filename = args[2]
+data_filename =  args[3] # filename of the data necessary for prediction
+out_filename =  args[4] # where to save the predictions
+graph_filename =  args[5] # filename of the graph
+output_format = args[6]
 print(output_format)
 stopifnot(output_format %in% c('metrics', 'samples'))
 
@@ -42,6 +43,21 @@ load(file = model_filename)
 
 # Load the data
 df <- read.table(data_filename, sep=',', header=TRUE)
+# add disease cases column with nan values
+df$Cases = rep(NA, nrow(df))
+df$disease_cases= rep(NA, nrow(df))
+
+# print start of df
+print(head(df))
+
+historic_df = read.table(historic_data_filename, sep=',', header=TRUE)
+# add historic_df at the beginning of df
+print("historic")
+print(head(historic_df))
+print("df")
+print(head(df))
+df = rbind(historic_df, df)
+
 df <- offset_years_and_months(df)
 #df$week = as.numeric(substr(df$time_period, 6, 8))
 basis_meantemperature = extra_fields(df)
