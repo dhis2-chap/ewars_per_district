@@ -4,7 +4,7 @@ name: auto_ewarjs
 
 adapters: {'Cases': 'disease_cases',
            'E': 'population',
-           'month': 'month',
+           'week': 'week',
            'ID_year': 'year',
            'ID_spat': 'location',
            'rainsum': 'rainfall',

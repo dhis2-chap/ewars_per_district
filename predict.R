@@ -58,7 +58,7 @@ print("df")
 print(head(df))
 df = rbind(historic_df, df)
 
-df <- offset_years_and_months(df)
+df <- offset_years_and_weeks(df)
 #df$week = as.numeric(substr(df$time_period, 6, 8))
 basis_meantemperature = extra_fields(df)
 basis_rainfall = get_basis_rainfall(df)

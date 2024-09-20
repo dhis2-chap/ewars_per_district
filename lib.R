@@ -13,7 +13,7 @@ local({r <- getOption("repos")
 
 library(tsModel)
 library(dlnm)
-
+n_periods = 12
 get_crossbasis <- function(var, group, nlag){
     tsModel::Lag(var, group = group, k = 0:nlag)
     lagknot = equalknots(0:nlag, 2)
@@ -23,6 +23,31 @@ get_crossbasis <- function(var, group, nlag){
 get_last_month <- function(df) {
   df = df[!is.na(df$Cases),]
   return(df$month[length(df$month)])
+}
+
+get_last_week <- function(df) {
+  df = df[!is.na(df$Cases),]
+  return(df$week[length(df$week)])
+}
+get_week_diff <- function(df){
+  last_week = get_last_week(df)
+
+  if (last_week<=26) {
+    week_diff = 26-last_week
+  } else {
+    week_diff = 78-last_week
+  }
+  return(week_diff)
+}
+
+offset_years_and_weeks <- function(df) {
+  week_diff = get_week_diff(df)
+  new_week = df$week + week_diff
+  week = ((new_week-1) %% 52)+1
+  ID_year = ifelse(new_week>52, df$ID_year+1, df$ID_year)
+  df$week = week
+  df$ID_year = ID_year
+  return(df)
 }
 
 get_month_diff <- function(df){
@@ -48,13 +73,13 @@ offset_years_and_months <- function(df) {
 
 
 extra_fields <- function(df) {
-    basis_meantemperature <- get_crossbasis(df$meantemperature, df$ID_spat, 3)
+    basis_meantemperature <- get_crossbasis(df$meantemperature, df$ID_spat, n_periods)
     colnames(basis_meantemperature) = paste0("basis_meantemperature.", colnames(basis_meantemperature))
     return (basis_meantemperature)
 }
 
 get_basis_rainfall <- function(df) {
-  basis <- get_crossbasis(df$rainfall, df$ID_spat, 3)
+  basis <- get_crossbasis(df$rainfall, df$ID_spat, n_periods)
   colnames(basis) = paste0('basis_rainfall', colnames(basis_meantemperature))
   return (basis)
 }
