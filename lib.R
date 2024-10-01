@@ -95,6 +95,6 @@ mymodel <- function(formula, data = df, family = "nbinomial", config = FALSE)
   return(model)
 }
 
-basis_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + f(month, model='rw1', cyclic=T, scale.model=T)
-lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + f(month, model='rw1', cyclic=T, scale.model=T) + basis_meantemperature + basis_rainfall
+basis_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + f(week, model='rw1', cyclic=T, scale.model=T)
+lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + f(week, model='rw1', cyclic=T, scale.model=T) + basis_meantemperature + basis_rainfall
 
