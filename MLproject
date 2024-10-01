@@ -1,6 +1,6 @@
 
 
-name: auto_ewarjs
+name: EWARS_weekly
 
 adapters: {'Cases': 'disease_cases',
            'E': 'population',
