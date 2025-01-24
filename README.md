@@ -95,7 +95,7 @@ This is where the predictions will be saved. The predictions will usually be in 
 This just shows the first 5 of the 1000 samples for each datapoint saved by CHAP.
 
 ## Explaining the code
-For now everything happens in the predict.R file, so that will be the focus. We first call the necessary libraries and source some helper functions from lib.R. Then in predict_chap we rowbind the historic and future data together. The next step depends on whether the data is weekly or monthly and assigns different values for the lag and defines ID_time_cyclic, also offsets the years and weeks/months (NOT NEEDED ANYMORE). We then make a index for each location for the number of weeks or months since the first observation. The function crossbasis from dlnm is then used to fit splines for both 'rainsum' and 'meantemperature', and we are finaly ready to define the model formula.
+For now everything happens in the predict.R file, so that will be the focus. We first call the necessary libraries and source some helper functions from lib.R. Then in predict_chap we rowbind the historic and future data together. The next step depends on whether the data is weekly or monthly and assigns different values for the lag and defines ID_time_cyclic, also offsets the years and weeks/months (NOT NEEDED ANYMORE). We then make a index for each location for the number of weeks or months since the first observation. The function crossbasis from dlnm is then used to fit splines to both lagged 'rainsum' and lagged 'meantemperature', and we are finaly ready to define the model formula.
 ```R
 lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid') + 
     f(ID_time, model = "rw1", scale.model = T) +
