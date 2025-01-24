@@ -1,6 +1,6 @@
 
 
-name: EWARS_weekly
+name: EWARS
 
 adapters: {'Cases': 'disease_cases',
            'E': 'population',
