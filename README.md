@@ -1,5 +1,5 @@
-# external_rmodel_example
-How to run train and predict using the model is defined in the yaml file MLproject: (MIGHT NEED TO UPDATE THIS FOR PLOYGONS ETC)
+# chap_auto_ewars for weekly and monthly data
+How to run train and predict using the model is defined in the yaml file MLproject: (NEED TO UPDATE THIS FOR POLYGONS ETC)
 ```yaml
 name: EWARS
 
@@ -28,10 +28,10 @@ entry_points:
       out_file: path
     command: "Rscript predict.R {model} {historic_data} {future_data} {out_file} None samples"
 ```
-The first part, the adapter, chages the variable names internaly in CHAP to whatever names we want to use in our code. The internal names are on the right side. To train the model is done through the Rscript command, and we supplu the filename for the training data a filename for saving the model.
- Further, we see that in order to predict using the model, we run the predict.R script and provide it the filename of the model, the filename of the historic data, the filename of the future data, and the filename of where the predictions should be saved. There are also two additional arguments which are not used at the moment. (THIS MIGHT CHANGE)
+The first part, the adapter, chages the variable names internaly in CHAP to whatever names we want to use in our code. The internal names are on the right side. To train the model is done through the Rscript command, and we supply the filename for the training data and a filename for saving the model.
+ Further, we see that in order to predict using the model, we run the predict.R script and provide it the filename of the model, the filename of the historic data, the filename of the future data, and the filename of where the predictions should be saved. There are also two additional arguments which are not used at the moment.
 
-The use of the adapter becomes clearer when viewing the formula in the predict.R (SHOULD BE TRAIN.R IDEALLY)
+The use of the adapter becomes clearer when viewing the formula in the predict.R 
 ```
 lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid') + 
       f(month_num, model = "rw1", scale.model = T, replicate = ID_spat_num) +
@@ -39,7 +39,7 @@ lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid') +
 ```
 We see that the model uses the name 'Cases' for what CHAP calls 'disease_cases' and 'ID_spat' for what CHAP calls 'location'. There are also aditional column names that do not correpsond with either naming conventions, and these are new columns created in the Rscripts, for example 'month_num'.
 
-In effect, what happens is that CHAP will add fields to the data that are named as the fields used in the model, and then write the data to a file that the model can read. (MIGHT ALSO CHANGE, UNNECESSARY LARGE DATASET, BUT NOT THAT IMPORTANT)
+In effect, what happens is that CHAP will add fields to the data that are named as the fields used in the model, and then write the data to a file that the model can read.
 
 ## train_data
 In the example data provided, we see the following fields in the csv file:
@@ -66,24 +66,6 @@ In the provided example data, the future data looks like this:
 ```
 We see that the disease_cases column is NA, as well as the Cases column, which is the column that the model will predict.
 
-## model
-(THIS IS CURRENTLY NOT USED)
-The model file is where we save the state from training to predicting. We see in the train.R file:
-```R
-args = commandArgs(trailingOnly=TRUE)
-# ...
-model_fn = args[2]
-# ...
-save(model, file = model_fn)
-```
-While in predict.R we have:
-```R
-args = commandArgs(trailingOnly=TRUE)
-model_fn = args[1] # filename of the saved model
-# ...
-load(file = model_fn)
-```
-
 ## out_file
 This is where the predictions will be saved. The predictions will usually be in the form of many simulated samples for each data point. In the example data, the predictions look like this:
 ```csv
@@ -95,7 +77,7 @@ This is where the predictions will be saved. The predictions will usually be in 
 This just shows the first 5 of the 1000 samples for each datapoint saved by CHAP.
 
 ## Explaining the code
-For now everything happens in the predict.R file, so that will be the focus. We first call the necessary libraries and source some helper functions from lib.R. Then in predict_chap we rowbind the historic and future data together. The next step depends on whether the data is weekly or monthly and assigns different values for the lag and defines ID_time_cyclic, also offsets the years and weeks/months (NOT NEEDED ANYMORE). We then make a index for each location for the number of weeks or months since the first observation. The function crossbasis from dlnm is then used to fit splines to both lagged 'rainsum' and lagged 'meantemperature', and we are finaly ready to define the model formula.
+For now everything happens in the predict.R file, so that will be the focus. We first call the necessary libraries and source some helper functions from lib.R. Then in predict_chap we rowbind the historic and future data together. The next step depends on whether the data is weekly or monthly and assigns different values for the lag and defines ID_time_cyclic. We then make a index for each location for the number of weeks or months since the first observation. The function crossbasis from dlnm is then used to fit splines to both lagged 'rainsum' and lagged 'meantemperature', and we are finaly ready to define the model formula.
 ```R
 lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid') + 
     f(ID_time, model = "rw1", scale.model = T) +
