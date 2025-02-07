@@ -1,4 +1,21 @@
 # chap_auto_ewars for weekly and monthly data
+
+## The difference between weekly and monthly
+```R
+if( "week" %in% colnames(df)){ # for a weekly model
+           nlag <- 12
+           df <- mutate(df, ID_time_cyclic = week)
+           df <- offset_years_and_weeks(df)
+} else{ # for a monthly model
+           nlag <- 3
+           df <- mutate(df, ID_time_cyclic = month)
+           df <- offset_years_and_months(df)
+}
+```
+The above code shows the difference needed between weekly and monthly data. We assume weekly input data will have a `week` column and we then define variables for the different cases. For instance weeks have `nlag = 12` while months have `nlag = 3`, which correpsonds to roughly the same amount of time. We also consrtuct the `ID_time_cyclic` column from either weeks or months so the formula later is consistent in both cases. If there are changed made to the model, it is likely that some further chanes are needed here as well.
+
+## A general overview
+
 How to run train and predict using the model is defined in the yaml file MLproject: (NEED TO UPDATE THIS FOR POLYGONS ETC)
 ```yaml
 name: EWARS
@@ -41,7 +58,7 @@ We see that the model uses the name 'Cases' for what CHAP calls 'disease_cases' 
 
 In effect, what happens is that CHAP will add fields to the data that are named as the fields used in the model, and then write the data to a file that the model can read.
 
-## train_data
+### train_data
 In the example data provided, we see the following fields in the csv file:
 ```csv
 "time_period","rainfall","mean_temperature","disease_cases","population","location","Cases","E","week","ID_year","ID_spat","rainsum","meantemperature"
@@ -53,7 +70,7 @@ In the example data provided, we see the following fields in the csv file:
 ```
 The last 7 columns are the ones specifically added for this model, while the first 6 are the ones that are present by default in CHAP.
 
-## future_data
+### future_data
 The future_data file is similar to the training data file, but where the disease_cases column is empty. This is the data that the model will use to make predictions.
 In the provided example data, the future data looks like this:
 ```csv
@@ -66,7 +83,7 @@ In the provided example data, the future data looks like this:
 ```
 We see that the disease_cases column is NA, as well as the Cases column, which is the column that the model will predict.
 
-## out_file
+### out_file
 This is where the predictions will be saved. The predictions will usually be in the form of many simulated samples for each data point. In the example data, the predictions look like this:
 ```csv
 "time_period","location","sample_0","sample_1","sample_2","sample_3","sample_4","sample_5", ...
