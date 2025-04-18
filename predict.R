@@ -7,7 +7,7 @@
 # ID_spat = location
 # rainsum = rainfall
 # meantemperature = mean_temperature
-#note: we will separate monthly and weekly models
+#note: The model uses either weeks or months
 
 
 library(INLA)
@@ -15,16 +15,10 @@ library(dlnm)
 library(dplyr)
 source("lib.R")
 
-# library(dplyr)
-# colnames(historic_df)[10] <- "week"
-# historic_df <- historic_df[, 2:14]
-# write.csv(historic_df, file = hist_fn, row.names = FALSE)
-
-
 predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn){
   #load(file = model_fn) #would normally load a model here
   
-  df <- read.csv(future_fn) #now the below two columns are included in the future df, but they are not normally
+  df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
   df$Cases <- rep(NA, nrow(df))
   df$disease_cases <- rep(NA, nrow(df)) #so we can rowbind it with historic
   
@@ -44,7 +38,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn){
   #df$ID_year <- df$ID_year - min(df$ID_year) + 1 #makes the years 1, 2, ...
   
   df <-group_by(df, location) |>
-    mutate(ID_time = row_number())
+    mutate(ID_time = row_number()) #this is for a RW1 in time
   
   basis_meantemperature <- crossbasis(df$meantemperature, lag=nlag, 
                                       argvar = list(fun = "ns", knots = equalknots(df$meantemperature, 2)), 
@@ -110,9 +104,3 @@ if (length(args) >= 1) {
   
   predict_chap(model_fn, hist_fn, future_fn, preds_fn)
 }
-
-#testing of the weekly model
-# model_fn <- "example_data/model"
-# hist_fn <-  "example_data/training_data.csv"
-# future_fn <- "example_data/future_data.csv"
-# preds_fn <- "example_data/predictions.csv"

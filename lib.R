@@ -7,7 +7,7 @@
 # ID_spat = location
 # rainsum = rainfall
 # meantemperature = mean_temperature
-#note: we will separate monthly and weekly models
+#note: The model uses either weeks or months
 
 
 get_last_month <- function(df) {
