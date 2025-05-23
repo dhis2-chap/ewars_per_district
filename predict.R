@@ -45,6 +45,9 @@ parse_model_configuration <- function(file_path) {
     additional_continuous_covariates = additional_continuous_covariates
   )
 }
+
+
+
 generate_lagged_model <- function(df, covariates, nlag) {
   basis_list <- list()
 
@@ -93,6 +96,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     config <- parse_model_configuration(config_fn)
     covariate_names <- config$additional_continuous_covariates
     nlag<- config$user_option_values$n_lag
+    precision <- config$user_option_values$precision
     # Use config$user_option_values and config$additional_continuous_covariates as needed
   }
   else {
@@ -128,7 +132,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   model <- inla(formula = lagged_formula, data = df, family = "nbinomial", offset = log(E),
                 control.inla = list(strategy = 'adaptive'),
                 control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
-                control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1, prec = 1),
+                control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
                 control.predictor = list(link = 1, compute = TRUE),
                 verbose = F, safe=FALSE)
   
