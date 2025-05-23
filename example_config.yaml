@@ -1,5 +1,5 @@
 additional_continuous_covariates:
-  - mean_temperature
-  - rainfall
+  - meantemperature
+  - rainsum
 user_option_values:
   n_lag: 3

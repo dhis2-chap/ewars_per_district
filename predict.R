@@ -91,7 +91,12 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     print("Loading model configuration from YAML file...")
     print(config_fn)
     config <- parse_model_configuration(config_fn)
+    covariate_names <- config$additional_continuous_covariates
+    nlag<- config$user_option_values$n_lag
     # Use config$user_option_values and config$additional_continuous_covariates as needed
+  }
+  else {
+        covariate_names <- c()
   }
   df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
 #   df$Cases <- df$disease_cases
@@ -106,32 +111,16 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   df <- rbind(historic_df, df) 
   
   if( "week" %in% colnames(df)){ # for a weekly model
-    nlag <- 12
     df <- mutate(df, ID_time_cyclic = week)
     df <- offset_years_and_weeks(df)
   } else{ # for a monthly model
-    nlag <- 3
     df <- mutate(df, ID_time_cyclic = month)
     df <- offset_years_and_months(df)
   }
   
   df$ID_year <- df$ID_year - min(df$ID_year) + 1 #makes the years 1, 2, ...
-  
-#   basis_meantemperature <- crossbasis(df$meantemperature, lag=nlag,
-#                                       argvar = list(fun = "ns", knots = equalknots(df$meantemperature, 2)),
-#                                       arglag = list(fun = "ns", knots = nlag/2), group = df$ID_spat)
-#
-#   colnames(basis_meantemperature) = paste0("basis_meantemperature.", colnames(basis_meantemperature))
-#
-#   basis_rainsum <- crossbasis(df$rainsum, lag=nlag,
-#                               argvar = list(fun = "ns", knots = equalknots(df$rainsum, 2)),
-#                               arglag = list(fun = "ns", knots = nlag/2), group = df$ID_spat)
-#   colnames(basis_rainsum) = paste0("basis_rainsum.", colnames(basis_rainsum))
-#
-#   lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) +
-#     f(ID_time_cyclic, model='rw1', cyclic=T, scale.model=T) +
-#     basis_meantemperature + basis_rainsum
-  generated <- generate_lagged_model(df, c("meantemperature", "rainsum"), nlag)
+
+  generated <- generate_lagged_model(df, covariate_names, nlag)
   lagged_formula <- generated$formula
   print(colnames(df))
   df <- generated$data
@@ -168,8 +157,6 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   # Write new dataframe to file, and save the model?
   write.csv(new.df, preds_fn, row.names = FALSE)
   saveRDS(model, file = model_fn)
-  stop('succes')
-
 }
 
 args <- commandArgs(trailingOnly = TRUE)
