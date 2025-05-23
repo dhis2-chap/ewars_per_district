@@ -8,8 +8,10 @@
 # rainsum = rainfall
 # meantemperature = mean_temperature
 #note: The model uses either weeks or months
-
-
+#install.packages('yaml')
+library(yaml)
+library(jsonlite)
+# install.packages('dplyr')
 library(INLA)
 library(dlnm)
 library(dplyr)
@@ -19,10 +21,84 @@ source("lib.R")
 library(sf)
 library(spdep)
 
-predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn){
+parse_model_configuration <- function(file_path) {
+  # Load YAML content
+  config <- yaml.load_file(file_path)
+  print(config)
+
+  # Ensure fields exist and provide defaults if missing
+  user_option_values <- if (!is.null(config$user_option_values)) {
+    fromJSON(toJSON(config$user_option_values))
+  } else {
+    list()
+  }
+
+  additional_continuous_covariates <- if (!is.null(config$additional_continuous_covariates)) {
+    config$additional_continuous_covariates
+  } else {
+    character()
+  }
+
+  # Return the structured list
+  list(
+    user_option_values = user_option_values,
+    additional_continuous_covariates = additional_continuous_covariates
+  )
+}
+generate_lagged_model <- function(df, covariates, nlag) {
+  basis_list <- list()
+
+  for (cov in covariates) {
+    var_data <- df[[cov]]
+    basis <- crossbasis(
+      var_data, lag = nlag,
+      argvar = list(fun = "ns", knots = equalknots(var_data, 2)),
+      arglag = list(fun = "ns", knots = nlag / 2),
+      group = df$ID_spat
+    )
+    basis_name <- paste0("basis_", cov)
+    colnames(basis) <- paste0(basis_name, ".", colnames(basis))
+    basis_list[[basis_name]] <- basis
+  }
+
+  # Combine basis matrices into one data frame
+  basis_df <- do.call(cbind, basis_list)
+
+  # Merge with the original dataframe
+  model_data <- cbind(df, basis_df)
+
+  # Get all new column names added
+  basis_columns <- colnames(basis_df)
+
+  # Generate formula string using column names directly
+  basis_terms <- paste(basis_columns, collapse = " + ")
+  print(basis_terms)
+  formula_str <- paste(
+    "Cases ~ 1 +",
+    "f(ID_spat, model='iid', replicate=ID_year) +",
+    "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
+    basis_terms
+  )
+
+  model_formula <- as.formula(formula_str)
+
+  return(list(formula = model_formula, data = model_data))
+}
+
+predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   #load(file = model_fn) #would normally load a model here
-  
+  if (config_fn != "") {
+    print("Loading model configuration from YAML file...")
+    print(config_fn)
+    config <- parse_model_configuration(config_fn)
+    # Use config$user_option_values and config$additional_continuous_covariates as needed
+  }
   df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
+#   df$Cases <- df$disease_cases
+#   df@E <- df$population
+#   df@ID_spat <- df$location
+#   df@rainsum <- df$rainfall
+#   df@meantemperature <- df$mean_temperature
   df$Cases <- rep(NA, nrow(df))
   df$disease_cases <- rep(NA, nrow(df)) #so we can rowbind it with historic
   
@@ -41,40 +117,25 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn){
   
   df$ID_year <- df$ID_year - min(df$ID_year) + 1 #makes the years 1, 2, ...
   
-  basis_meantemperature <- crossbasis(df$meantemperature, lag=nlag, 
-                                      argvar = list(fun = "ns", knots = equalknots(df$meantemperature, 2)), 
-                                      arglag = list(fun = "ns", knots = nlag/2), group = df$ID_spat)
-  colnames(basis_meantemperature) = paste0("basis_meantemperature.", colnames(basis_meantemperature))
-  
-  basis_rainsum <- crossbasis(df$rainsum, lag=nlag, 
-                              argvar = list(fun = "ns", knots = equalknots(df$rainsum, 2)), 
-                              arglag = list(fun = "ns", knots = nlag/2), group = df$ID_spat)
-  colnames(basis_rainsum) = paste0("basis_rainsum.", colnames(basis_rainsum))
-  
-  lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) + 
-    f(ID_time_cyclic, model='rw1', cyclic=T, scale.model=T) + 
-    basis_meantemperature + basis_rainsum
-  
-  # if(graph_fn != ""){
-  #   df$ID_spat_num2 <- df$ID_spat_num
-  #   
-  #   geojson <- st_read(graph_fn)
-  #   geojson <- st_make_valid(geojson) #some geojson files will giver errors later if this is not cleaned here
-  #   
-  #   df_locs <- unique(df$location)
-  #   geojson_red <- geojson[geojson$VARNAME_1 %in% df_locs, ] #only keeps the regions present in the dataframe
-  #   #both df_locs and geosjon_red should be in alfabetical order, believe the files are alfabetical in CHAP, might need to sort them
-  #   #if they are both alphabetical, and take care about which field in the geeojson, could be vietnamese or english (handle in CHAP?)
-  #   #then the regions should harmonize correctly in the formulas below
-  #   
-  #   nb <- poly2nb(geojson_red, queen = TRUE) #adjacent polygons are neighbors
-  #   adjacency <- nb2mat(nb, style = "B", zero.policy = TRUE) #converts it to an adjacency matrix which is passed to the bym2
-  #   
-  #   lagged_formula <- Cases ~ 1 + f(ID_spat_num, model = "bym2", graph = adjacency) +
-  #     f(ID_time_cyclic, model='rw1', cyclic=T, scale.model=T) + 
-  #     basis_meantemperature + basis_rainsum
-  # }
-
+#   basis_meantemperature <- crossbasis(df$meantemperature, lag=nlag,
+#                                       argvar = list(fun = "ns", knots = equalknots(df$meantemperature, 2)),
+#                                       arglag = list(fun = "ns", knots = nlag/2), group = df$ID_spat)
+#
+#   colnames(basis_meantemperature) = paste0("basis_meantemperature.", colnames(basis_meantemperature))
+#
+#   basis_rainsum <- crossbasis(df$rainsum, lag=nlag,
+#                               argvar = list(fun = "ns", knots = equalknots(df$rainsum, 2)),
+#                               arglag = list(fun = "ns", knots = nlag/2), group = df$ID_spat)
+#   colnames(basis_rainsum) = paste0("basis_rainsum.", colnames(basis_rainsum))
+#
+#   lagged_formula <- Cases ~ 1 + f(ID_spat, model='iid', replicate=ID_year) +
+#     f(ID_time_cyclic, model='rw1', cyclic=T, scale.model=T) +
+#     basis_meantemperature + basis_rainsum
+  generated <- generate_lagged_model(df, c("meantemperature", "rainsum"), nlag)
+  lagged_formula <- generated$formula
+  print(colnames(df))
+  df <- generated$data
+  print(colnames(df))
   model <- inla(formula = lagged_formula, data = df, family = "nbinomial", offset = log(E),
                 control.inla = list(strategy = 'adaptive'),
                 control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
@@ -107,19 +168,25 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn){
   # Write new dataframe to file, and save the model?
   write.csv(new.df, preds_fn, row.names = FALSE)
   saveRDS(model, file = model_fn)
+  stop('succes')
+
 }
 
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) >= 1) {
   cat("running predictions")
+  print(args)
   model_fn <- args[1]
   hist_fn <- args[2]
   future_fn <- args[3]
   preds_fn <- args[4]
-  #graph_fn <- args[5]
-  
-  predict_chap(model_fn, hist_fn, future_fn, preds_fn)#, graph_fn)
+  if (length(args) == 5) {
+    config_fn <- args[5]
+  } else {
+    config_fn <- ""
+  }
+  predict_chap(model_fn, hist_fn, future_fn, preds_fn, config_fn)
 }
 
 #Testing

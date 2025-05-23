@@ -4,7 +4,7 @@ name: EWARS
 
 adapters: {'Cases': 'disease_cases',
            'E': 'population',
-           'week': 'week',
+           'month': 'month',
            'ID_year': 'year',
            'ID_spat': 'location',
            'rainsum': 'rainfall',
@@ -18,11 +18,19 @@ entry_points:
     parameters:
       train_data: path
       model: str
-    command: "Rscript train.R {train_data} {model}"
+      model_config: path
+    command: "Rscript train.R {train_data} {model} {model_config}"
   predict:
     parameters:
       historic_data: path
       future_data: path
       model: str
       out_file: path
-    command: "Rscript predict.R {model} {historic_data} {future_data} {out_file} None samples"
+      model_config: path
+    command: "Rscript predict.R {model} {historic_data} {future_data} {out_file} {model_config}"
+allow_free_additional_continuous_covariates: true
+user_options:
+  n_lags:
+  type: int
+  default: 3
+  description: Number of lags to include in the model.
