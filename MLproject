@@ -2,8 +2,6 @@ name: ewars_template
 
 target: disease_cases
 required_covariates: 
-  - rainfall
-  - mean_temperature
   - population
 
 supported_period_type: week
