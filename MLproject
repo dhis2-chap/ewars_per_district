@@ -5,9 +5,8 @@ required_covariates:
   - rainfall
   - mean_temperature
   - population
-allow_free_additional_continuous_covariates: False
+
 supported_period_type: week
-user_options: {}
 
 meta_data: 
   display_name: Flexible EWARS Model
@@ -52,10 +51,10 @@ entry_points:
 allow_free_additional_continuous_covariates: true
 user_options:
   n_lags:
-    type: int
+    type: integer
     default: 3
     description: Number of lags to include in the model.
   precision:
-    type: float
+    type: number
     default: 0.01
     description: Prior on the precision of fixed effects. Works as regularization
