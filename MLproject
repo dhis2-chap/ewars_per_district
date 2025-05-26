@@ -1,4 +1,4 @@
-name: chap_ewars_weekly
+name: ewars_template
 
 target: disease_cases
 required_covariates: 
