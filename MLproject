@@ -4,7 +4,7 @@ target: disease_cases
 required_covariates: 
   - population
 
-supported_period_type: week
+supported_period_type: month
 
 meta_data: 
   display_name: Flexible EWARS Model
