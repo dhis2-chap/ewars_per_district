@@ -10,6 +10,10 @@ user_options:
     type: integer
     default: 3
     description: Number of lags to include in the model.
+  precision:
+    type: number
+    default: 0.01
+    description: Prior on the precision of fixed effects. Works as regularization
 
 meta_data: 
   display_name: CHAP-EWARS Model
@@ -51,8 +55,3 @@ entry_points:
       out_file: path
       model_config: path
     command: "Rscript predict.R {model} {historic_data} {future_data} {out_file} {model_config}"
-
-  precision:
-    type: number
-    default: 0.01
-    description: Prior on the precision of fixed effects. Works as regularization
