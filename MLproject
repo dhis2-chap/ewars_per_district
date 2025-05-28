@@ -26,8 +26,7 @@ adapters: {'Cases': 'disease_cases',
            'month': 'month',
            'ID_year': 'year',
            'ID_spat': 'location',
-           'rainsum': 'rainfall',
-           'meantemperature': 'mean_temperature'}
+           }
 
 docker_env:
   image: ghcr.io/dhis2-chap/docker_r_inla:master
