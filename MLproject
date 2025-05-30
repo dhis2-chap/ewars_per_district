@@ -3,7 +3,7 @@ name: ewars_template
 target: disease_cases
 required_covariates: 
   - population
-supported_period_type: month
+supported_period_type: any
 allow_free_additional_continuous_covariates: true
 user_options:
   n_lags:
@@ -33,6 +33,7 @@ meta_data:
 adapters: {'Cases': 'disease_cases',
            'E': 'population',
            'month': 'month',
+           'week': 'week',
            'ID_year': 'year',
            'ID_spat': 'location',
            }
