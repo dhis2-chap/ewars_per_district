@@ -46,7 +46,16 @@ parse_model_configuration <- function(file_path) {
   )
 }
 
+generate_bacic_model <- function(df, covariates, nlag) {
+  formula_str <- paste(
+    "Cases ~ 1 +",
+    "f(ID_spat, model='iid', replicate=ID_year) +",
+    "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE)"
+  )
+  model_formula <- as.formula(formula_str)
 
+  return(list(formula = model_formula, data = df))
+}
 
 generate_lagged_model <- function(df, covariates, nlag) {
   basis_list <- list()
@@ -103,11 +112,6 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
         covariate_names <- c()
   }
   df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
-#   df$Cases <- df$disease_cases
-#   df@E <- df$population
-#   df@ID_spat <- df$location
-#   df@rainsum <- df$rainfall
-#   df@meantemperature <- df$mean_temperature
   df$Cases <- rep(NA, nrow(df))
   df$disease_cases <- rep(NA, nrow(df)) #so we can rowbind it with historic
   
@@ -124,7 +128,11 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   
   df$ID_year <- df$ID_year - min(df$ID_year) + 1 #makes the years 1, 2, ...
 
-  generated <- generate_lagged_model(df, covariate_names, nlag)
+  if (length(covariate_names) == 0) {
+    generated <- generate_bacic_model(df, covariate_names, nlag)
+  } else {
+    generated <- generate_lagged_model(df, covariate_names, nlag)
+  }
   lagged_formula <- generated$formula
   print(colnames(df))
   df <- generated$data
