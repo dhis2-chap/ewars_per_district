@@ -107,9 +107,9 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     nlag<- config$user_option_values$n_lag
     precision <- config$user_option_values$precision
     # Use config$user_option_values and config$additional_continuous_covariates as needed
-  }
-  else {
-        covariate_names <- c()
+  } else {
+        covariate_names <- c("rainfall", "mean_temperature")
+        precision <- 0.01
   }
   df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
   df$Cases <- rep(NA, nrow(df))
@@ -121,9 +121,11 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   if( "week" %in% colnames(df)){ # for a weekly model
     df <- mutate(df, ID_time_cyclic = week)
     df <- offset_years_and_weeks(df)
+    nlag <- 12
   } else{ # for a monthly model
     df <- mutate(df, ID_time_cyclic = month)
     df <- offset_years_and_months(df)
+    nlag <- 3
   }
   
   df$ID_year <- df$ID_year - min(df$ID_year) + 1 #makes the years 1, 2, ...

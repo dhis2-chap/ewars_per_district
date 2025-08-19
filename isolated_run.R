@@ -2,7 +2,7 @@
 source("train.R")
 source("predict.R")
 
-#test for weekly data, fails with nlag = 12 since the dataset is to small
+#test for weekly data, fails with nlag = 12 since the dataset is to small, works with 5 for example
 train_chap("example_data/trainData.csv", "example_data/model")
 predict_chap("example_data/model", "example_data/training_data.csv", "example_data/future_data.csv", "example_data/predictions.csv")
 

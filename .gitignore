@@ -1,1 +1,5 @@
 .Rhistory
+example_data/model
+example_data_monthly/predictions.csv
+example_data_monthly/model
+example_data/model
