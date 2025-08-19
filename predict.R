@@ -97,6 +97,33 @@ generate_lagged_model <- function(df, covariates, nlag) {
   return(list(formula = model_formula, data = model_data))
 }
 
+generate_model_with_single_lag <- function(df, covariates, nlag) {
+  basis_terms <- ""
+  
+  for (cov in covariates) {
+    var_data <- df[[cov]]
+    basis_name <- paste0(cov, "_lag", nlag)
+    if (basis_terms == "") {
+      basis_terms <- basis_name
+    } else {
+      basis_terms <- paste(basis_terms, "+", basis_name)
+    }
+    mutate(df, !!basis_name := dplyr::lag(.data[[cov]], nlag))
+  }
+  
+  # Generate formula string 
+  formula_str <- paste(
+    "Cases ~ 1 +",
+    "f(ID_spat, model='iid', replicate=ID_year) +",
+    "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
+    basis_terms
+  )
+  
+  model_formula <- as.formula(formula_str)
+  
+  return(list(formula = model_formula, data = df))
+}
+
 predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   #load(file = model_fn) #would normally load a model here
   if (config_fn != "") {
@@ -121,20 +148,49 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   if( "week" %in% colnames(df)){ # for a weekly model
     df <- mutate(df, ID_time_cyclic = week)
     df <- offset_years_and_weeks(df)
-    nlag <- 12
+    min_lag <- 4
+    max_lag <- 16
   } else{ # for a monthly model
     df <- mutate(df, ID_time_cyclic = month)
     df <- offset_years_and_months(df)
-    nlag <- 3
+    min_lag <- 1
+    max_lag <- 4
   }
   
   df$ID_year <- df$ID_year - min(df$ID_year) + 1 #makes the years 1, 2, ...
-
-  if (length(covariate_names) == 0) {
-    generated <- generate_bacic_model(df, covariate_names, nlag)
-  } else {
-    generated <- generate_lagged_model(df, covariate_names, nlag)
-  }
+  
+  unique_districts <- unique(df$ID_spat)
+  
+  df_with_best_lag_per_dist <- data.frame(district = unique_districts,
+    best_lag = NA )
+  
+  for (district in unique_districts) {
+    df_dis <- filter(df, ID_spat == district)
+    
+    #Values to be overwritten
+    DIC <- 1e4 
+    best_lag <- 0
+    
+    for (lag in min_lag:max_lag) {
+      generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
+      
+      model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
+                    offset = log(E), control.inla = list(strategy = 'adaptive'),
+                    control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
+                    control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
+                    control.predictor = list(link = 1, compute = TRUE),
+                    verbose = F, safe=FALSE)
+      if (model$dic$dic < DIC){
+        DIC <- model$dic$dic
+        best_lag <- lag
+      }
+    }
+    df_with_best_lag_per_dist$best_lag[df_with_best_lag_per_dist$district == district] <- best_lag
+  } #the DIC may be dependent on the chosen lag as it effects the number of datapoints
+  # also, higher lags get less data
+  
+  generated <- generate_lagged_model(df, covariate_names, nlag)
+    
   lagged_formula <- generated$formula
   print(colnames(df))
   df <- generated$data
