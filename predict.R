@@ -99,6 +99,7 @@ generate_lagged_model <- function(df, covariates, nlag) {
 
 generate_model_with_single_lag <- function(df, covariates, nlag) {
   basis_terms <- ""
+  covariates <- c(covariates, "Cases")
   
   for (cov in covariates) {
     var_data <- df[[cov]]
@@ -108,7 +109,8 @@ generate_model_with_single_lag <- function(df, covariates, nlag) {
     } else {
       basis_terms <- paste(basis_terms, "+", basis_name)
     }
-    mutate(df, !!basis_name := dplyr::lag(.data[[cov]], nlag))
+    df <- mutate(df, !!basis_name := dplyr::lag(.data[[cov]], nlag)) 
+    #just shifts the row by lag, should maybe also remove the rows with the now missing values?
   }
   
   # Generate formula string 
@@ -138,12 +140,12 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
         covariate_names <- c("rainfall", "mean_temperature")
         precision <- 0.01
   }
-  df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
-  df$Cases <- rep(NA, nrow(df))
-  df$disease_cases <- rep(NA, nrow(df)) #so we can rowbind it with historic
+  future_df <- read.csv(future_fn) #the two columns on the next lines are not normally included in the future df
+  future_df$Cases <- rep(NA, nrow(future_df))
+  future_df$disease_cases <- rep(NA, nrow(future_df)) #so we can rowbind it with historic
   
   historic_df = read.csv(hist_fn)
-  df <- rbind(historic_df, df) 
+  df <- rbind(historic_df, future_df) 
   
   if( "week" %in% colnames(df)){ # for a weekly model
     df <- mutate(df, ID_time_cyclic = week)
@@ -164,13 +166,16 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   df_with_best_lag_per_dist <- data.frame(district = unique_districts,
     best_lag = NA )
   
+  #assumes all districts in future_df has the same number of rows/timepoints
+  prediction_period <- nrow(filter(future_df, ID_spat == unique_districts[1]))
+  results_df <- data.frame() #an empty placeholder
+  
   for (district in unique_districts) {
     df_dis <- filter(df, ID_spat == district)
     
     #Values to be overwritten
-    DIC <- 1e4 
+    DIC <- 1e7 
     best_lag <- 0
-    
     for (lag in min_lag:max_lag) {
       generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
       
@@ -180,53 +185,57 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
                     control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
                     control.predictor = list(link = 1, compute = TRUE),
                     verbose = F, safe=FALSE)
+      # print(lag)
+      # print(model$dic$dic)
+      # print("----------------")
       if (model$dic$dic < DIC){
         DIC <- model$dic$dic
         best_lag <- lag
       }
     }
+    
+    #predictions for the given district
+    casestopred <- df_dis$Cases # response variable
+    
+    # Predict only for the cases where the response variable is missing
+    idx.pred <- which(is.na(casestopred)) #this then also predicts for historic values that are NA, not ideal
+    mpred <- length(idx.pred)
+    s <- 1000
+    y.pred <- matrix(NA, mpred, s)
+    # Sample parameters of the model
+    xx <- inla.posterior.sample(s, model)  # This samples parameters of the model
+    xx.s <- inla.posterior.sample.eval(function(idx.pred) c(theta[1], Predictor[idx.pred]), xx, idx.pred = idx.pred) # This extracts the expected value and hyperparameters from the samples
+    
+    # Sample predictions
+    for (s.idx in 1:s){
+      xx.sample <- xx.s[, s.idx]
+      y.pred[, s.idx] <- rnbinom(mpred,  mu = exp(xx.sample[-1]), size = xx.sample[1])
+    }
+    
+    new.df = data.frame(time_period = df_dis$time_period[idx.pred], location = df_dis$location[idx.pred], y.pred)
+    colnames(new.df) = c('time_period', 'location', paste0('sample_', 0:(s-1)))
+    
+    if (nrow(results_df) < 1) {
+      results_df <- new.df
+    } else {
+      results_df <- rbind(results_df, new.df)
+    }
+    
+    #to save the best lags for comparisons between districts
     df_with_best_lag_per_dist$best_lag[df_with_best_lag_per_dist$district == district] <- best_lag
   } #the DIC may be dependent on the chosen lag as it effects the number of datapoints
   # also, higher lags get less data
-  
-  generated <- generate_lagged_model(df, covariate_names, nlag)
-    
-  lagged_formula <- generated$formula
-  print(colnames(df))
-  df <- generated$data
-  print(colnames(df))
-  model <- inla(formula = lagged_formula, data = df, family = "nbinomial", offset = log(E),
-                control.inla = list(strategy = 'adaptive'),
-                control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
-                control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
-                control.predictor = list(link = 1, compute = TRUE),
-                verbose = F, safe=FALSE)
-  
-  casestopred <- df$Cases # response variable
-  
-  # Predict only for the cases where the response variable is missing
-  idx.pred <- which(is.na(casestopred)) #this then also predicts for historic values that are NA, not ideal
-  mpred <- length(idx.pred)
-  s <- 1000
-  y.pred <- matrix(NA, mpred, s)
-  # Sample parameters of the model
-  xx <- inla.posterior.sample(s, model)  # This samples parameters of the model
-  xx.s <- inla.posterior.sample.eval(function(idx.pred) c(theta[1], Predictor[idx.pred]), xx, idx.pred = idx.pred) # This extracts the expected value and hyperparameters from the samples
-  
-  # Sample predictions
-  for (s.idx in 1:s){
-    xx.sample <- xx.s[, s.idx]
-    y.pred[, s.idx] <- rnbinom(mpred,  mu = exp(xx.sample[-1]), size = xx.sample[1])
-  }
-  
-  # make a dataframe where first column is the time points, second column is the location, rest is the samples
-  # rest of columns should be called sample_0, sample_1, etc
-  new.df = data.frame(time_period = df$time_period[idx.pred], location = df$location[idx.pred], y.pred)
-  colnames(new.df) = c('time_period', 'location', paste0('sample_', 0:(s-1)))
+  #currently predicts for all timepoints in future_df regardless of the chosen best lag, not ideal
   
   # Write new dataframe to file, and save the model?
-  write.csv(new.df, preds_fn, row.names = FALSE)
-  saveRDS(model, file = model_fn)
+  write.csv(results_df, preds_fn, row.names = FALSE)
+  #saveRDS(model, file = model_fn)
+  
+  #have not handled the comment below
+  #now we have the chosen lag per district, then the predictions must be sampled, 
+  #the issue is that the lags differ, and thus the predictions will vary in time
+  # some can only predict next month, some can predict four months ahead.
+
 }
 
 args <- commandArgs(trailingOnly = TRUE)
