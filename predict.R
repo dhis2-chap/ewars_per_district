@@ -46,6 +46,7 @@ parse_model_configuration <- function(file_path) {
   )
 }
 
+#Not used
 generate_bacic_model <- function(df, covariates, nlag) {
   formula_str <- paste(
     "Cases ~ 1 +",
@@ -57,6 +58,7 @@ generate_bacic_model <- function(df, covariates, nlag) {
   return(list(formula = model_formula, data = df))
 }
 
+#not used
 generate_lagged_model <- function(df, covariates, nlag) {
   basis_list <- list()
 
@@ -116,7 +118,7 @@ generate_model_with_single_lag <- function(df, covariates, nlag) {
   # Generate formula string 
   formula_str <- paste(
     "Cases ~ 1 +",
-    "f(ID_spat, model='iid', replicate=ID_year) +",
+    "f(ID_spat, model='iid', replicate=ID_year) +", # just a yearly iid effect
     "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
     basis_terms
   )
@@ -174,7 +176,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     df_dis <- filter(df, ID_spat == district)
     
     #Values to be overwritten
-    DIC <- 1e7 
+    LS <- 1e7 
     best_lag <- 0
     for (lag in min_lag:max_lag) {
       generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
@@ -186,13 +188,23 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
                     control.predictor = list(link = 1, compute = TRUE),
                     verbose = F, safe=FALSE)
       # print(lag)
-      # print(model$dic$dic)
+      # print(-mean(log(model$cpo$cpo), na.rm = TRUE))
       # print("----------------")
-      if (model$dic$dic < DIC){
-        DIC <- model$dic$dic
+      new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
+      if (new_LS < LS){
+        LS <- new_LS
         best_lag <- lag
       }
     }
+    generated <- generate_model_with_single_lag(df_dis, covariate_names, best_lag)
+    
+    model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
+                  offset = log(E), control.inla = list(strategy = 'adaptive'),
+                  control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
+                  control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
+                  control.predictor = list(link = 1, compute = TRUE),
+                  verbose = F, safe=FALSE)
+    
     
     #predictions for the given district
     casestopred <- df_dis$Cases # response variable
@@ -215,6 +227,10 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     new.df = data.frame(time_period = df_dis$time_period[idx.pred], location = df_dis$location[idx.pred], y.pred)
     colnames(new.df) = c('time_period', 'location', paste0('sample_', 0:(s-1)))
     
+    if (best_lag < prediction_period){ #removes the predictions past the horizon from the best_lag
+      new.df <- new.df[1:(nrow(new.df) - prediction_period + best_lag), ]
+    }
+
     if (nrow(results_df) < 1) {
       results_df <- new.df
     } else {
@@ -230,12 +246,6 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   # Write new dataframe to file, and save the model?
   write.csv(results_df, preds_fn, row.names = FALSE)
   #saveRDS(model, file = model_fn)
-  
-  #have not handled the comment below
-  #now we have the chosen lag per district, then the predictions must be sampled, 
-  #the issue is that the lags differ, and thus the predictions will vary in time
-  # some can only predict next month, some can predict four months ahead.
-
 }
 
 args <- commandArgs(trailingOnly = TRUE)
