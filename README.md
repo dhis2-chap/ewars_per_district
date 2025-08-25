@@ -1,4 +1,8 @@
-# chap_auto_ewars for weekly and monthly data
+# ewars_per_district for weekly and monthly data
+
+This model trains on the districts individually and finds the most suitably lag for the climate covariates through optimizing logarithmic scoring (LS). A consequence of this is different prediciton horizons for each district, which could be troubelsome in a production enviroment. This model is currently not finsihed and is a work in progress.
+
+Note: The text below is not fully up to speed
 
 ## The difference between weekly and monthly
 ```R
