@@ -46,62 +46,9 @@ parse_model_configuration <- function(file_path) {
   )
 }
 
-#Not used
-generate_bacic_model <- function(df, covariates, nlag) {
-  formula_str <- paste(
-    "Cases ~ 1 +",
-    "f(ID_spat, model='iid', replicate=ID_year) +",
-    "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE)"
-  )
-  model_formula <- as.formula(formula_str)
-
-  return(list(formula = model_formula, data = df))
-}
-
-#not used
-generate_lagged_model <- function(df, covariates, nlag) {
-  basis_list <- list()
-
-  for (cov in covariates) {
-    var_data <- df[[cov]]
-    basis <- crossbasis(
-      var_data, lag = nlag,
-      argvar = list(fun = "ns", knots = equalknots(var_data, 2)),
-      arglag = list(fun = "ns", knots = nlag / 2),
-      group = df$ID_spat
-    )
-    basis_name <- paste0("basis_", cov)
-    colnames(basis) <- paste0(basis_name, ".", colnames(basis))
-    basis_list[[basis_name]] <- basis
-  }
-
-  # Combine basis matrices into one data frame
-  basis_df <- do.call(cbind, basis_list)
-
-  # Merge with the original dataframe
-  model_data <- cbind(df, basis_df)
-
-  # Get all new column names added
-  basis_columns <- colnames(basis_df)
-
-  # Generate formula string using column names directly
-  basis_terms <- paste(basis_columns, collapse = " + ")
-  print(basis_terms)
-  formula_str <- paste(
-    "Cases ~ 1 +",
-    "f(ID_spat, model='iid', replicate=ID_year) +",
-    "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
-    basis_terms
-  )
-
-  model_formula <- as.formula(formula_str)
-
-  return(list(formula = model_formula, data = model_data))
-}
-
 generate_model_with_single_lag <- function(df, covariates, nlag) {
   basis_terms <- ""
-  covariates <- c(covariates, "Cases")
+  covariates <- c(covariates)
   
   for (cov in covariates) {
     var_data <- df[[cov]]
@@ -111,14 +58,15 @@ generate_model_with_single_lag <- function(df, covariates, nlag) {
     } else {
       basis_terms <- paste(basis_terms, "+", basis_name)
     }
-    df <- mutate(df, !!basis_name := dplyr::lag(.data[[cov]], nlag)) 
+    df <- mutate(df, !!basis_name := dplyr::lag(.data[[cov]], nlag))
+    df <- df[(nlag+1):nrow(df),]
     #just shifts the row by lag, should maybe also remove the rows with the now missing values?
   }
   
   # Generate formula string 
   formula_str <- paste(
     "Cases ~ 1 +",
-    "f(ID_spat, model='iid', replicate=ID_year) +", # just a yearly iid effect
+    "f(ID_year, model='iid') +", # just a yearly iid effect
     "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
     basis_terms
   )
@@ -148,6 +96,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   
   historic_df = read.csv(hist_fn)
   df <- rbind(historic_df, future_df) 
+  #district <- "Acre"
   
   if( "week" %in% colnames(df)){ # for a weekly model
     df <- mutate(df, ID_time_cyclic = week)
@@ -171,15 +120,21 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   #assumes all districts in future_df has the same number of rows/timepoints
   prediction_period <- nrow(filter(future_df, ID_spat == unique_districts[1]))
   results_df <- data.frame() #an empty placeholder
-  
+  #district <- "Amapa"
   for (district in unique_districts) {
+    print("-----------District-----------------")
+    print(district)
     df_dis <- filter(df, ID_spat == district)
     
     #Values to be overwritten
     LS <- 1e7 
     best_lag <- 0
     for (lag in min_lag:max_lag) {
+      lag <- 3
       generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
+      #print(generated$formula)
+      #print(district)
+      test_data <- generated$data
       
       model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
                     offset = log(E), control.inla = list(strategy = 'adaptive'),
@@ -187,16 +142,18 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
                     control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
                     control.predictor = list(link = 1, compute = TRUE),
                     verbose = F, safe=FALSE)
+      summary(model)
       # print(lag)
       # print(-mean(log(model$cpo$cpo), na.rm = TRUE))
       # print("----------------")
       new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
+      print(new_LS)
       if (new_LS < LS){
         LS <- new_LS
         best_lag <- lag
       }
     }
-    generated <- generate_model_with_single_lag(df_dis, covariate_names, best_lag)
+    generated <- generate_model_with_single_lag(df_dis, covariate_names, 4) #best_lag
     
     model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
                   offset = log(E), control.inla = list(strategy = 'adaptive'),
@@ -220,8 +177,11 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     
     # Sample predictions
     for (s.idx in 1:s){
+      s.idx <- 1
       xx.sample <- xx.s[, s.idx]
+      print(xx.sample)
       y.pred[, s.idx] <- rnbinom(mpred,  mu = exp(xx.sample[-1]), size = xx.sample[1])
+      stopifnot(!is.na(y.pred[, s.idx]))
     }
     
     new.df = data.frame(time_period = df_dis$time_period[idx.pred], location = df_dis$location[idx.pred], y.pred)
