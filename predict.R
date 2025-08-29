@@ -46,6 +46,10 @@ parse_model_configuration <- function(file_path) {
   )
 }
 
+# df <- df_dis
+# covariates <- covariate_names
+# nlag <- 2
+
 generate_model_with_single_lag <- function(df, covariates, nlag) {
   basis_terms <- ""
   covariates <- c(covariates)
@@ -59,9 +63,8 @@ generate_model_with_single_lag <- function(df, covariates, nlag) {
       basis_terms <- paste(basis_terms, "+", basis_name)
     }
     df <- mutate(df, !!basis_name := dplyr::lag(.data[[cov]], nlag))
-    df <- df[(nlag+1):nrow(df),]
-    #just shifts the row by lag, should maybe also remove the rows with the now missing values?
   }
+  df <- df[(nlag+1):nrow(df),] 
   
   # Generate formula string 
   formula_str <- paste(
@@ -96,6 +99,11 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   
   historic_df = read.csv(hist_fn)
   df <- rbind(historic_df, future_df) 
+  
+  #Standardize climate variables to standard normal, N(0, 1)
+  for (covariate in covariate_names){
+    df[[covariate]] <- (df[[covariate]] - mean(df[[covariate]])) / sd(df[[covariate]])
+  }
   #district <- "Acre"
   
   if( "week" %in% colnames(df)){ # for a weekly model
@@ -120,7 +128,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
   #assumes all districts in future_df has the same number of rows/timepoints
   prediction_period <- nrow(filter(future_df, ID_spat == unique_districts[1]))
   results_df <- data.frame() #an empty placeholder
-  #district <- "Amapa"
+  district <- "DistritoFederal"
   for (district in unique_districts) {
     print("-----------District-----------------")
     print(district)
@@ -128,32 +136,27 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     
     #Values to be overwritten
     LS <- 1e7 
-    best_lag <- 0
-    for (lag in min_lag:max_lag) {
-      lag <- 3
-      generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
-      #print(generated$formula)
-      #print(district)
-      test_data <- generated$data
-      
-      model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
-                    offset = log(E), control.inla = list(strategy = 'adaptive'),
-                    control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
-                    control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
-                    control.predictor = list(link = 1, compute = TRUE),
-                    verbose = F, safe=FALSE)
-      summary(model)
-      # print(lag)
-      # print(-mean(log(model$cpo$cpo), na.rm = TRUE))
-      # print("----------------")
-      new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
-      print(new_LS)
-      if (new_LS < LS){
-        LS <- new_LS
-        best_lag <- lag
-      }
-    }
-    generated <- generate_model_with_single_lag(df_dis, covariate_names, 4) #best_lag
+    best_lag <- 4 # should be NA or something
+    # for (lag in min_lag:max_lag) {
+    #   #lag <- 1
+    #   generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
+    #   test_data <- generated$data
+    #   
+    #   model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
+    #                 offset = log(E), control.inla = list(strategy = 'adaptive'),
+    #                 control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
+    #                 control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
+    #                 control.predictor = list(link = 1, compute = TRUE),
+    #                 verbose = T, safe=FALSE)
+    #   summary(model)
+    #   new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
+    #   print(new_LS)
+    #   if (new_LS < LS){
+    #     LS <- new_LS
+    #     best_lag <- lag
+    #   }
+    # }
+    generated <- generate_model_with_single_lag(df_dis, covariate_names, best_lag) #best_lag
     
     model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
                   offset = log(E), control.inla = list(strategy = 'adaptive'),
@@ -162,9 +165,9 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
                   control.predictor = list(link = 1, compute = TRUE),
                   verbose = F, safe=FALSE)
     
-    
+    summary(model)
     #predictions for the given district
-    casestopred <- df_dis$Cases # response variable
+    casestopred <- generated$data$Cases # response variable
     
     # Predict only for the cases where the response variable is missing
     idx.pred <- which(is.na(casestopred)) #this then also predicts for historic values that are NA, not ideal
@@ -177,14 +180,14 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     
     # Sample predictions
     for (s.idx in 1:s){
-      s.idx <- 1
+      #s.idx <- 1
       xx.sample <- xx.s[, s.idx]
-      print(xx.sample)
+      #print(xx.sample)
       y.pred[, s.idx] <- rnbinom(mpred,  mu = exp(xx.sample[-1]), size = xx.sample[1])
       stopifnot(!is.na(y.pred[, s.idx]))
     }
     
-    new.df = data.frame(time_period = df_dis$time_period[idx.pred], location = df_dis$location[idx.pred], y.pred)
+    new.df = data.frame(time_period = generated$data$time_period[idx.pred], location = generated$data$location[idx.pred], y.pred)
     colnames(new.df) = c('time_period', 'location', paste0('sample_', 0:(s-1)))
     
     if (best_lag < prediction_period){ #removes the predictions past the horizon from the best_lag
