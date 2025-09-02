@@ -67,12 +67,20 @@ generate_model_with_single_lag <- function(df, covariates, nlag) {
   df <- df[(nlag+1):nrow(df),] 
   
   # Generate formula string 
-  formula_str <- paste(
-    "Cases ~ 1 +",
-    "f(ID_year, model='iid') +", # just a yearly iid effect
-    "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
-    basis_terms
-  )
+  # formula_str <- paste(
+  #   "Cases ~ 1 +",
+  #   "f(ID_year, model='iid') +", # just a yearly iid effect
+  #   "f(ID_time_cyclic, model='rw1', cyclic=TRUE, scale.model=TRUE) +",
+  #   basis_terms
+  # )
+  
+  hyper_iid <- list(prec = list(prior = "pc.prec", param = c(1, 0.01)))      # sd(u)=1 with 1% tail
+  hyper_rw1 <- list(prec = list(prior = "pc.prec", param = c(0.5, 0.01)))    # a bit tighter on the seasonal smooth
+  
+  formula_str <- paste("Cases ~ 1 +",
+                       "f(ID_year, model = 'iid', hyper = hyper_iid) +",
+                       "f(ID_time_cyclic, model = 'rw1', cyclic = TRUE, n = 12, scale.model = TRUE, hyper = hyper_rw1) +", 
+                       basis_terms)
   
   model_formula <- as.formula(formula_str)
   
@@ -136,26 +144,26 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     
     #Values to be overwritten
     LS <- 1e7 
-    best_lag <- 4 # should be NA or something
-    # for (lag in min_lag:max_lag) {
-    #   #lag <- 1
-    #   generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
-    #   test_data <- generated$data
-    #   
-    #   model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
-    #                 offset = log(E), control.inla = list(strategy = 'adaptive'),
-    #                 control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
-    #                 control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
-    #                 control.predictor = list(link = 1, compute = TRUE),
-    #                 verbose = T, safe=FALSE)
-    #   summary(model)
-    #   new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
-    #   print(new_LS)
-    #   if (new_LS < LS){
-    #     LS <- new_LS
-    #     best_lag <- lag
-    #   }
-    # }
+    best_lag <- 0 # should be NA or something
+    for (lag in min_lag:max_lag) {
+      #lag <- 1
+      generated <- generate_model_with_single_lag(df_dis, covariate_names, lag)
+      test_data <- generated$data
+
+      model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial",
+                    offset = log(E), control.inla = list(strategy = 'adaptive'),
+                    control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
+                    control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
+                    control.predictor = list(link = 1, compute = TRUE),
+                    verbose = F, safe=FALSE)
+      summary(model)
+      new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
+      print(new_LS)
+      if (new_LS < LS){
+        LS <- new_LS
+        best_lag <- lag
+      }
+    }
     generated <- generate_model_with_single_lag(df_dis, covariate_names, best_lag) #best_lag
     
     model <- inla(formula = generated$formula, data = generated$data, family = "nbinomial", 
