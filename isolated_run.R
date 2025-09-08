@@ -24,16 +24,6 @@ predict_chap("example_data_monthly/model", "historic_data.csv", "future_data.csv
 # preds <- filter(preds, yearmonth(time_period) >= yearmonth("2017-01")) #only works for this specific test data
 # yearmonth(preds[1, "time_period"]) < yearmonth("2017-01")
 
-hei <- packageVersion("INLA")
 packageDescription("INLA")$Version
-
-update.packages(ask = FALSE, checkBuilt = TRUE)
-
-install.packages("remotes")
-library(remotes)
-remotes::install_version("INLA", version = "25.06.13",
-                         repos = c(getOption("repos"), INLA = "https://inla.r-inla-download.org/R/testing"), dep = TRUE)
-
-install.packages("INLA",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)
 
 rows_with_na <- df[apply(historic_df, 1, function(x) any(is.na(x))), ]

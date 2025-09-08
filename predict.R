@@ -8,10 +8,9 @@
 # rainsum = rainfall
 # meantemperature = mean_temperature
 #note: The model uses either weeks or months
-#install.packages('yaml')
+
 library(yaml)
 library(jsonlite)
-# install.packages('dplyr')
 library(INLA)
 library(dlnm)
 library(dplyr)
@@ -45,10 +44,6 @@ parse_model_configuration <- function(file_path) {
     additional_continuous_covariates = additional_continuous_covariates
   )
 }
-
-# df <- df_dis
-# covariates <- covariate_names
-# nlag <- 2
 
 generate_model_with_single_lag <- function(df, covariates, nlag) {
   basis_terms <- ""
@@ -155,7 +150,7 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
                     control.compute = list(dic = TRUE, config = TRUE, cpo = TRUE, return.marginals = FALSE),
                     control.fixed = list(correlation.matrix = TRUE, prec.intercept = 1e-4, prec = precision),
                     control.predictor = list(link = 1, compute = TRUE),
-                    verbose = F, safe=FALSE)
+                    verbose = T, safe=FALSE)
       summary(model)
       new_LS <- -mean(log(model$cpo$cpo), na.rm = TRUE) #ignores the NA's for the missing cases
       print(new_LS)
