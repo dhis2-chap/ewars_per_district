@@ -76,7 +76,7 @@ generate_model_with_single_lag <- function(df, covariates, nlag) {
                        "f(ID_year, model = 'iid', hyper = hyper_iid) +",
                        "f(ID_time_cyclic, model = 'rw1', cyclic = TRUE, n = 12, scale.model = TRUE, hyper = hyper_rw1) +", 
                        basis_terms)
-  
+  print(formula_str) 
   model_formula <- as.formula(formula_str)
   
   return(list(formula = model_formula, data = df))
@@ -88,7 +88,11 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     print("Loading model configuration from YAML file...")
     print(config_fn)
     config <- parse_model_configuration(config_fn)
-    covariate_names <- config$additional_continuous_covariates
+    covariate_names <- c("rainfall", "mean_temperature") #default values
+    # if additional, add these to list:
+    if (length(config$additional_continuous_covariates) > 0) {
+      covariate_names <- c(covariate_names, config$additional_continuous_covariates)
+    }
     nlag<- config$user_option_values$n_lag
     precision <- config$user_option_values$precision
     # Use config$user_option_values and config$additional_continuous_covariates as needed
