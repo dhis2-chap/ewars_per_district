@@ -175,9 +175,17 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     summary(model)
     #predictions for the given district
     casestopred <- generated$data$Cases # response variable
-    
-    # Predict only for the cases where the response variable is missing
-    idx.pred <- which(is.na(casestopred)) #this then also predicts for historic values that are NA, not ideal
+
+    # Predict only for the cases where the response variable is missing AND the
+    # row's time_period belongs to future_df. The previous version only checked
+    # is.na(Cases), which also matched gap-filled / genuinely missing historic
+    # rows; predictions for those rows then ended up in the output CSV under
+    # time_periods chap-core's join doesn't expect, leaving the actual forecast
+    # horizon NaN after merge (chap-core's pandera schema then rejects with
+    # "non-nullable series 'forecast' contains null values").
+    future_periods <- unique(future_df$time_period)
+    idx.pred <- which(generated$data$time_period %in% future_periods &
+                      is.na(casestopred))
     mpred <- length(idx.pred)
     s <- 1000
     y.pred <- matrix(NA, mpred, s)
@@ -196,10 +204,13 @@ predict_chap <- function(model_fn, hist_fn, future_fn, preds_fn, config_fn=""){
     
     new.df = data.frame(time_period = generated$data$time_period[idx.pred], location = generated$data$location[idx.pred], y.pred)
     colnames(new.df) = c('time_period', 'location', paste0('sample_', 0:(s-1)))
-    
-    if (best_lag < prediction_period){ #removes the predictions past the horizon from the best_lag
-      new.df <- new.df[1:(nrow(new.df) - prediction_period + best_lag), ]
-    }
+
+    # No further truncation needed: idx.pred is already restricted to future_df's
+    # time_periods (see the filter above), so new.df contains exactly the rows
+    # chap-core's join expects. The previous `best_lag < prediction_period`
+    # truncation block was compensating for an over-broad idx.pred that included
+    # historic NA rows too — with the filter that compensation now over-crops
+    # (e.g. would leave only 1 of 3 future periods for districts with best_lag=1).
 
     if (nrow(results_df) < 1) {
       results_df <- new.df
